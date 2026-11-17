@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>APLIKASI UJIAN ONLINE - SMP NEGERI 2 PURWOSARI</title>
-  <link href="https://googleapis.com" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #1e40af;
@@ -222,8 +222,8 @@
   </div>
 
 <script>
-  const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfOlX5JLYhseq15OIjFt102UKSJTwnE23Un0uafMnB-U2Nqo54-cGZ_9krg516MzFQqQ/exec";
-  const GITHUB_DATA_URL = "https://github.io";
+  const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXctUmROmk70eu4nt7Ebi4QVKiSzpv1ysskTD1GXaF4xUKiCqJs6fv9hPF32V026L7Ww/exec";
+  const GITHUB_DATA_URL = "https://nataliasiskasari72-netizen.github.io/Ujian-Sheet/data/";
 let cacheKelas = null;
 let siswaAktif = null;
 let mapelAktif = null;
@@ -241,67 +241,71 @@ document.getElementById('btnPrev').addEventListener('click', function() { pindah
 document.getElementById('btnRagu').addEventListener('click', toggleRagu);
 document.getElementById('btnNext').addEventListener('click', function() { pindahSoal(1); });
 document.getElementById('btnSelesai').addEventListener('click', konfirmasiSelesai);
-document.getElementById('btnBatalKirim').addEventListener('click', tutupModal);
-document.getElementById('btnConfirmKirim').addEventListener('click', function() { submitJawabanAkhir(false); });
 async function muatJadwalKelas(kelas) {
-const selMapel = document.getElementById('selMapel');
-const infoJadwal = document.getElementById('infoJadwalMapel');
-tampilkanErrorLogin("");
-infoJadwal.textContent = "";
-if (!kelas) {
-selMapel.innerHTML = '-- Pilih Kelas Terlebih Dahulu --';
-selMapel.disabled = true;
-return;
-}
-selMapel.innerHTML = 'Sedang memuat mapel ' + kelas + '...';
-selMapel.disabled = true;
-try {
-const urlJson = GITHUB_DATA_URL + kelas + '.json?t=' + new Date().getTime();
-const res = await fetch(urlJson);
-if (!res.ok) throw new Error('File ' + kelas + '.json belum ditemukan di GitHub (Kode ' + res.status + ').');
-cacheKelas = await res.json();
-if (cacheKelas.info) {
-document.getElementById('uiJudulUjian').textContent = cacheKelas.info.judulUjian || "APLIKASI UJIAN ONLINE";
-document.getElementById('uiNamaSekolah').textContent = cacheKelas.info.namaSekolah || "SMP NEGERI 2 PURWOSARI";
-}
-selMapel.innerHTML = '-- Pilih Mata Pelajaran --';
-const daftar = cacheKelas.daftar || [];
-for (let i = 0; i < daftar.length; i++) {
-const m = daftar[i];
-const opt = document.createElement('option');
-opt.value = m.id;
-opt.textContent = m.judul + ' (' + m.durasi + ' Menit)';
-selMapel.appendChild(opt);
-}
-selMapel.disabled = false;
-} catch (err) {
-selMapel.innerHTML = 'Gagal memuat data kelas';
-tampilkanErrorLogin(err.message);
-}
+  const selMapel = document.getElementById('selMapel');
+  const infoJadwal = document.getElementById('infoJadwalMapel');
+  const btnMasuk = document.getElementById('btnMasuk');
+  cacheKelas = null;
+  tampilkanErrorLogin("");
+  infoJadwal.textContent = "";
+  btnMasuk.disabled = true;
+  if (!kelas) {
+    selMapel.innerHTML = '<option value="">-- Pilih Kelas Terlebih Dahulu --</option>';
+    selMapel.disabled = true;
+    return;
+  }
+  selMapel.innerHTML = '<option value="">Sedang memuat mapel ' + kelas + '...</option>';
+  selMapel.disabled = true;
+  try {
+    const urlJson = GITHUB_DATA_URL + encodeURIComponent(kelas) + '.json?t=' + Date.now();
+    const res = await fetch(urlJson, {cache: 'no-store'});
+    if (!res.ok) throw new Error('Data ' + kelas + '.json tidak dapat dimuat (HTTP ' + res.status + '). Periksa GitHub Pages dan folder data/.');
+    const data = await res.json();
+    if (!data || !Array.isArray(data.daftar)) throw new Error('Format file ' + kelas + '.json tidak sesuai. Jalankan sinkronisasi ulang dari Spreadsheet.');
+    cacheKelas = data;
+    if (data.info) {
+      document.getElementById('uiJudulUjian').textContent = data.info.judulUjian || "APLIKASI UJIAN ONLINE";
+      document.getElementById('uiNamaSekolah').textContent = data.info.namaSekolah || "SMP NEGERI 2 PURWOSARI";
+    }
+    selMapel.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>';
+    data.daftar.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = String(m.id);
+      opt.textContent = (m.judul || m.id) + ' (' + (m.durasi || 60) + ' Menit)';
+      selMapel.appendChild(opt);
+    });
+    selMapel.disabled = data.daftar.length === 0;
+    if (!data.daftar.length) throw new Error('Tidak ada mata pelajaran aktif untuk kelas ' + kelas + '.');
+  } catch (err) {
+    cacheKelas = null;
+    selMapel.innerHTML = '<option value="">Gagal memuat data kelas</option>';
+    selMapel.disabled = true;
+    tampilkanErrorLogin(err.message || String(err));
+  }
 }
 function cekStatusJadwal() {
-const idMapel = document.getElementById('selMapel').value;
-const infoJadwal = document.getElementById('infoJadwalMapel');
-const btnMasuk = document.getElementById('btnMasuk');
-tampilkanErrorLogin("");
-if (!idMapel || !cacheKelas) {
-infoJadwal.textContent = "";
-return;
-}
-const m = cacheKelas.daftar.find(function(x) { return x.id === idMapel; });
-if (!m) return;
-const now = Date.now();
-if (m.mulai && now < m.mulai) {
-const tglMulai = new Date(m.mulai).toLocaleString('id-ID');
-infoJadwal.textContent = '⏳ Ujian belum dimulai. Jadwal mulai: ' + tglMulai;
-btnMasuk.disabled = true;
-} else if (m.berakhir && now > m.berakhir) {
-infoJadwal.textContent = '⛔ Waktu pelaksanaan ujian untuk mata pelajaran ini sudah berakhir.';
-btnMasuk.disabled = true;
-} else {
-infoJadwal.textContent = '✅ Jadwal Aktif • Durasi pengerjaan: ' + m.durasi + ' menit';
-btnMasuk.disabled = false;
-}
+  const idMapel = document.getElementById('selMapel').value;
+  const infoJadwal = document.getElementById('infoJadwalMapel');
+  const btnMasuk = document.getElementById('btnMasuk');
+  tampilkanErrorLogin("");
+  btnMasuk.disabled = true;
+  if (!idMapel || !cacheKelas || !Array.isArray(cacheKelas.daftar)) {
+    infoJadwal.textContent = "";
+    return;
+  }
+  const m = cacheKelas.daftar.find(x => String(x.id) === String(idMapel));
+  if (!m) { infoJadwal.textContent = "Data mata pelajaran tidak ditemukan."; return; }
+  const now = Date.now();
+  const mulai = Number(m.mulai) || 0;
+  const berakhir = Number(m.berakhir) || 0;
+  if (mulai && now < mulai) {
+    infoJadwal.textContent = '⏳ Ujian belum dimulai. Jadwal mulai: ' + new Date(mulai).toLocaleString('id-ID');
+  } else if (berakhir && now > berakhir) {
+    infoJadwal.textContent = '⛔ Waktu pelaksanaan ujian untuk mata pelajaran ini sudah berakhir.';
+  } else {
+    infoJadwal.textContent = '✅ Jadwal Aktif • Durasi pengerjaan: ' + (m.durasi || 60) + ' menit';
+    btnMasuk.disabled = false;
+  }
 }
 async function prosesLogin() {
 const kelas = document.getElementById('selKelas').value;
@@ -386,96 +390,95 @@ const match = String(raw).match(/\d+/);
 return match ? parseInt(match, 10) : (idx + 1);
 }
 function tampilkanSoal(idx) {
-indexAktif = idx;
-const soal = daftarSoal[idx];
-const noSoal = getNoSoal(soal, idx);
-const tipe = String(soal.Tipe_Soal || soal.TIPE_SOAL || soal.Tipe || soal.TIPE || "PG").toUpperCase().trim();
-document.getElementById('qNomorLabel').textContent = 'Soal No. ' + noSoal + ' dari ' + daftarSoal.length;
-document.getElementById('qTipeLabel').textContent = tipe;
-const teks = soal.Teks_Soal || soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
-const gbr = soal.Media_Soal || soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
-let htmlKonten = '' + teks + '';
-if (gbr) {
-const urlGbr = formatGambarDrive(String(gbr).trim());
-htmlKonten += '';
-}
-document.getElementById('qKonten').innerHTML = htmlKonten;
-const opsiBox = document.getElementById('qOpsiContainer');
-opsiBox.innerHTML = "";
-const jwbSekarang = jawabanUser[noSoal] || "";
-if (tipe === "PG" || tipe === "BS") {
-const daftarHuruf = tipe === "BS" ? ["A", "B"] : ["A", "B", "C", "D", "E"];
-daftarHuruf.forEach(function(huruf) {
-const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
-if (!teksOpsi && tipe !== "BS") return;
-const labelTampil = teksOpsi || (huruf === "A" ? "Benar" : "Salah");
-const isSel = jwbSekarang === huruf;
-const div = document.createElement('div');
-div.className = 'option-item ' + (isSel ? 'selected' : '');
-div.innerHTML = '' + huruf + '' + labelTampil + '';
-div.onclick = function() {
-jawabanUser[noSoal] = huruf;
-tampilkanSoal(idx);
-renderGridNomor();
-};
-opsiBox.appendChild(div);
-});
-} else if (tipe === "PGK") {
-const terpilih = jwbSekarang ? jwbSekarang.split(',') : [];
-["A", "B", "C", "D", "E"].forEach(function(huruf) {
-const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
-if (!teksOpsi) return;
-const isSel = terpilih.includes(huruf);
-const div = document.createElement('div');
-div.className = 'option-item ' + (isSel ? 'selected' : '');
-div.innerHTML = '<input type="checkbox" ' + (isSel ? 'checked' : '') + ' style="margin-top:5px;"> ' + huruf + '. ' + teksOpsi + '';
-div.onclick = function() {
-let arr = jawabanUser[noSoal] ? jawabanUser[noSoal].split(',').filter(Boolean) : [];
-if (arr.includes(huruf)) arr = arr.filter(function(x) { return x !== huruf; });
-else arr.push(huruf);
-arr.sort();
-jawabanUser[noSoal] = arr.join(',');
-tampilkanSoal(idx);
-renderGridNomor();
-};
-opsiBox.appendChild(div);
-});
-} else if (tipe.indexOf("MCMA") > -1 || tipe === "MENJODOHKAN") {
-const barisPernyataan = [];
-for (let p = 1; p <= 6; p++) {
-const tP = soal['Pernyataan_' + p] || soal['PERNYATAAN_' + p] || soal['Kiri_' + p] || "";
-if (tP) barisPernyataan.push(tP);
-}
-const opsiKanan = [];
-["A", "B", "C", "D", "E", "F"].forEach(function(h) {
-const tK = soal['Opsi_' + h] || soal['OPSI_' + h] || soal['Kanan_' + h] || soal[h] || "";
-if (tK) opsiKanan.push({ key: h, text: tK });
-});
-const arrJwb = jwbSekarang ? jwbSekarang.split(',') : new Array(barisPernyataan.length).fill("");
-let tbl = 'PernyataanPilihan Jawaban';
-barisPernyataan.forEach(function(pText, iRow) {
-tbl += '' + pText + '';
-tbl += '-- Pilih --';
-opsiKanan.forEach(function(ok) {
-const sel = (arrJwb[iRow] === ok.key) ? "selected" : "";
-tbl += '<option value="' + ok.key + '" ' + sel + '>' + ok.key + ' - ' + ok.text + '';
-});
-tbl += '';
-});
-tbl += '';
-opsiBox.innerHTML = tbl;
-} else {
-opsiBox.innerHTML = '';
-}
-document.getElementById('btnPrev').disabled = (idx === 0);
-if (idx === daftarSoal.length - 1) {
-document.getElementById('btnNext').classList.add('hidden');
-document.getElementById('btnSelesai').classList.remove('hidden');
-} else {
-document.getElementById('btnNext').classList.remove('hidden');
-document.getElementById('btnSelesai').classList.add('hidden');
-}
-renderGridNomor();
+  if (!Array.isArray(daftarSoal) || !daftarSoal[idx]) return;
+  indexAktif = idx;
+  const soal = daftarSoal[idx];
+  const noSoal = getNoSoal(soal, idx);
+  const tipe = String(soal.Tipe_Soal || soal.TIPE_SOAL || soal.Tipe || soal.TIPE || "PG").toUpperCase().trim();
+  document.getElementById('qNomorLabel').textContent = 'Soal No. ' + noSoal + ' dari ' + daftarSoal.length;
+  document.getElementById('qTipeLabel').textContent = tipe;
+  const teks = soal.Teks_Soal || soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
+  const gbr = soal.Media_Soal || soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
+  document.getElementById('qKonten').textContent = String(teks);
+  if (gbr) {
+    const img = document.createElement('img');
+    img.className = 'soal-img';
+    img.src = formatGambarDrive(String(gbr).trim());
+    img.alt = 'Gambar soal';
+    img.onerror = () => { img.alt = 'Gambar soal tidak dapat dimuat'; };
+    document.getElementById('qKonten').appendChild(img);
+  }
+  const opsiBox = document.getElementById('qOpsiContainer');
+  opsiBox.innerHTML = '';
+  const jawaban = String(jawabanUser[noSoal] || '');
+  const buatOpsi = (huruf, isi, selected, handler) => {
+    const div = document.createElement('div');
+    div.className = 'option-item' + (selected ? ' selected' : '');
+    const key = document.createElement('span');
+    key.className = 'option-key';
+    key.textContent = huruf;
+    const label = document.createElement('span');
+    label.textContent = String(isi);
+    div.append(key, label);
+    div.addEventListener('click', handler);
+    opsiBox.appendChild(div);
+  };
+  const getOpsi = h => soal['Opsi_' + h] || soal['OPSI_' + h] || soal[h] || '';
+  if (tipe === 'PG' || tipe === 'BS') {
+    const hurufList = tipe === 'BS' ? ['A','B'] : ['A','B','C','D','E'];
+    hurufList.forEach(h => {
+      const isi = getOpsi(h) || (tipe === 'BS' ? (h === 'A' ? 'Benar' : 'Salah') : '');
+      if (!isi) return;
+      buatOpsi(h, isi, jawaban === h, () => {
+        jawabanUser[noSoal] = h; tampilkanSoal(idx);
+      });
+    });
+  } else if (tipe === 'PGK' || tipe.indexOf('PILIHAN GANDA KOMPLEKS') >= 0) {
+    const terpilih = jawaban ? jawaban.split(',') : [];
+    ['A','B','C','D','E'].forEach(h => {
+      const isi = getOpsi(h); if (!isi) return;
+      buatOpsi(terpilih.includes(h) ? '✓' : '□', isi, terpilih.includes(h), () => {
+        const arr = jawabanUser[noSoal] ? jawabanUser[noSoal].split(',').filter(Boolean) : [];
+        const next = arr.includes(h) ? arr.filter(x => x !== h) : arr.concat(h);
+        jawabanUser[noSoal] = next.sort().join(',');
+        tampilkanSoal(idx);
+      });
+    });
+  } else if (tipe === 'MENJODOHKAN' || tipe.indexOf('MCMA') >= 0) {
+    const pernyataan = [];
+    for (let i=1;i<=10;i++) {
+      const v = soal['Pernyataan_' + i] || soal['PERNYATAAN_' + i] || soal['Kiri_' + i] || '';
+      if (v) pernyataan.push(v);
+    }
+    const kanan = ['A','B','C','D','E','F','G','H'].map(h => ({key:h,text:getOpsi(h) || soal['Kanan_' + h] || ''})).filter(x => x.text);
+    const arr = jawaban ? jawaban.split(',') : [];
+    const table = document.createElement('table'); table.className = 'match-table';
+    const head = document.createElement('tr');
+    ['Pernyataan','Pilihan Jawaban'].forEach(t => { const th=document.createElement('th'); th.textContent=t; head.appendChild(th); });
+    table.appendChild(head);
+    pernyataan.forEach((p,i) => {
+      const tr=document.createElement('tr'), td1=document.createElement('td'), td2=document.createElement('td');
+      td1.textContent=p;
+      const select=document.createElement('select'); select.className='form-control';
+      const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent='-- Pilih --'; select.appendChild(placeholder);
+      kanan.forEach(o => { const op=document.createElement('option'); op.value=o.key; op.textContent=o.text; select.appendChild(op); });
+      select.value=arr[i] || '';
+      select.addEventListener('change',()=>ubahJawabanMatch(noSoal,i,pernyataan.length,select.value));
+      td2.appendChild(select); tr.append(td1,td2); table.appendChild(tr);
+    });
+    opsiBox.appendChild(table);
+  } else if (tipe === 'ISIAN' || tipe.indexOf('ISIAN') >= 0) {
+    const input=document.createElement('input'); input.type='text'; input.className='form-control';
+    input.placeholder='Isikan jawaban Anda'; input.value=jawaban;
+    input.addEventListener('input',()=>ubahJawabanIsian(noSoal,input.value));
+    opsiBox.appendChild(input);
+  } else {
+    const info=document.createElement('p'); info.textContent='Jenis soal "'+tipe+'" belum dikenali.'; opsiBox.appendChild(info);
+  }
+  document.getElementById('btnPrev').disabled = (idx === 0);
+  document.getElementById('btnNext').classList.toggle('hidden', idx === daftarSoal.length - 1);
+  document.getElementById('btnSelesai').classList.toggle('hidden', idx !== daftarSoal.length - 1);
+  renderGridNomor();
 }
 function ubahJawabanMatch(noSoal, rowIdx, totalRows, val) {
 let arr = jawabanUser[noSoal] ? jawabanUser[noSoal].split(',') : new Array(totalRows).fill("");
@@ -516,11 +519,15 @@ grid.appendChild(btn);
 });
 }
 function formatGambarDrive(url) {
-if (url.includes('google.com')) {
-const id = url.includes('id=') ? url.split('id=').split('&') : url.split('/d/').split('/');
-return 'google.com' + id;
-}
-return url;
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.includes('drive.google.com')) {
+    let id = '';
+    const m = s.match(/(?:\/d\/|[?&]id=)([-\w]{10,})/);
+    if (m) id = m[1];
+    if (id) return 'https://drive.google.com/uc?export=view&id=' + id;
+  }
+  return s;
 }
 function konfirmasiSelesai() {
 let terjawab = 0;
@@ -569,3 +576,6 @@ alert("Terjadi gangguan jaringan saat mengirim jawaban: " + err.message);
 if (btnKirim) { btnKirim.disabled = false; btnKirim.textContent = "Ya, Kirim"; }
 }
 }
+</script>
+</body>
+</html>
