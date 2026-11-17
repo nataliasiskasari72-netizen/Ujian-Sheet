@@ -21,7 +21,6 @@
     * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
     body { margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; }
     .hidden { display: none !important; }
-    
     .topbar {
       background: var(--primary); color: #fff; padding: 14px 20px;
       display: flex; justify-content: space-between; align-items: center;
@@ -33,13 +32,11 @@
       background: #fff; color: var(--primary); font-weight: 700;
       padding: 6px 14px; border-radius: 999px; font-size: 0.95rem;
     }
-
     .container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
     .card {
       background: var(--card); border-radius: 12px; padding: 24px;
       box-shadow: 0 4px 12px rgba(15,23,42,0.06); border: 1px solid #e2e8f0;
     }
-
     .login-box { max-width: 440px; margin: 32px auto; }
     .login-header { text-align: center; margin-bottom: 20px; }
     .logo-circle {
@@ -54,7 +51,6 @@
       border-radius: 8px; font-size: 0.95rem; outline: none; transition: 0.2s;
     }
     .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(30,64,175,0.12); }
-
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       padding: 11px 18px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;
@@ -66,10 +62,8 @@
     .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
     .btn-success { background: var(--success); color: #fff; }
     .btn-warning { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
-
     .alert { padding: 12px 14px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 14px; }
     .alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-
     .student-bar {
       display: flex; align-items: center; justify-content: space-between;
       background: #f8fafc; padding: 12px 16px; border-radius: 10px;
@@ -85,7 +79,6 @@
     }
     .soal-text { font-size: 1.02rem; line-height: 1.65; margin-bottom: 18px; }
     .soal-img { max-width: 100%; max-height: 320px; border-radius: 8px; margin: 10px 0; display: block; }
-
     .option-item {
       display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px;
       border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px;
@@ -98,11 +91,9 @@
       display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;
     }
     .option-item.selected .option-key { background: var(--primary); color: #fff; }
-
     .match-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     .match-table th, .match-table td { border: 1px solid #cbd5e1; padding: 10px; font-size: 0.92rem; text-align: left; }
     .match-table th { background: #f8fafc; }
-
     .nav-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
     .num-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
@@ -115,7 +106,6 @@
     .num-btn.active { border: 2px solid var(--primary); }
     .num-btn.answered { background: var(--primary); color: #fff; border-color: var(--primary); }
     .num-btn.ragu { background: #f59e0b; color: #fff; border-color: #d97706; }
-
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,0.55);
       display: flex; align-items: center; justify-content: center; z-index: 999; padding: 16px;
@@ -124,7 +114,6 @@
   </style>
 </head>
 <body>
-
   <header class="topbar">
     <div>
       <h1 id="uiJudulUjian">APLIKASI UJIAN ONLINE</h1>
@@ -145,7 +134,7 @@
 
       <div class="form-group">
         <label>1. Pilih Kelas</label>
-        <select id="selKelas" class="form-control" onchange="muatJadwalKelas(this.value)">
+        <select id="selKelas" class="form-control">
           <option value="">-- Pilih Kelas --</option>
           <option value="7A">7A</option>
           <option value="7B">7B</option>
@@ -158,7 +147,7 @@
 
       <div class="form-group">
         <label>2. Pilih Mata Pelajaran</label>
-        <select id="selMapel" class="form-control" disabled onchange="cekStatusJadwal()">
+        <select id="selMapel" class="form-control" disabled>
           <option value="">-- Pilih Kelas Terlebih Dahulu --</option>
         </select>
         <small id="infoJadwalMapel" style="display:block;margin-top:5px;color:var(--primary);font-weight:500;"></small>
@@ -174,7 +163,7 @@
         <input type="password" id="inpPass" class="form-control" placeholder="Masukkan Password">
       </div>
 
-      <button id="btnMasuk" class="btn btn-primary" onclick="prosesLogin()">MASUK UJIAN</button>
+      <button id="btnMasuk" class="btn btn-primary" type="button">MASUK UJIAN</button>
     </div>
   </main>
 
@@ -184,7 +173,7 @@
         <strong id="examNamaSiswa">-</strong> (<span id="examKelasSiswa">-</span>)<br>
         <small id="examMapelJudul" style="color:var(--muted);">-</small>
       </div>
-      <button class="btn btn-outline" style="padding:6px 12px;font-size:0.85rem;" onclick="toggleDaftarSoal()">Daftar Nomor Soal</button>
+      <button id="btnToggleNav" class="btn btn-outline" style="padding:6px 12px;font-size:0.85rem;" type="button">Daftar Nomor Soal</button>
     </div>
 
     <div id="panelDaftarSoal" class="card hidden" style="margin-bottom:16px;">
@@ -202,10 +191,10 @@
       <div id="qOpsiContainer"></div>
 
       <div class="nav-footer">
-        <button id="btnPrev" class="btn btn-outline" onclick="pindahSoal(-1)">⬅ Sebelumnya</button>
-        <button id="btnRagu" class="btn btn-warning" onclick="toggleRagu()">Ragu-ragu</button>
-        <button id="btnNext" class="btn btn-primary" style="width:auto;" onclick="pindahSoal(1)">Selanjutnya ➡</button>
-        <button id="btnSelesai" class="btn btn-success hidden" onclick="konfirmasiSelesai()">✔ Selesai Ujian</button>
+        <button id="btnPrev" class="btn btn-outline" type="button">⬅ Sebelumnya</button>
+        <button id="btnRagu" class="btn btn-warning" type="button">Ragu-ragu</button>
+        <button id="btnNext" class="btn btn-primary" style="width:auto;" type="button">Selanjutnya ➡</button>
+        <button id="btnSelesai" class="btn btn-success hidden" type="button">✔ Selesai Ujian</button>
       </div>
     </div>
   </section>
@@ -217,11 +206,11 @@
       <p id="finishMsg" style="color:var(--muted);font-size:0.95rem;line-height:1.5;">
         Terima kasih, jawaban Anda telah berhasil dikirim dan tercatat di server sekolah.
       </p>
-      <button class="btn btn-primary" style="margin-top:16px;" onclick="location.reload()">Kembali ke Halaman Login</button>
+      <button class="btn btn-primary" style="margin-top:16px;" type="button" onclick="location.reload()">Kembali ke Halaman Login</button>
     </div>
-  </section>
+  </section>  
 
-  <div id="modalConfirm" class="modal-backdrop hidden">
+<div id="modalConfirm" class="modal-backdrop hidden">
     <div class="modal-card">
       <h3 style="margin-top:0;">Kirim Jawaban Sekarang?</h3>
       <p id="modalConfirmText" style="color:var(--muted);font-size:0.9rem;"></p>
@@ -555,7 +544,7 @@ grid.appendChild(btn);
 });
 }
 function formatGambarDrive(url) {
-if (url.includes('drive.google.com')) {
+if (url.includes('google.com')) {
 const id = url.includes('id=') ? url.split('id=').split('&') : url.split('/d/').split('/');
 return 'google.com' + id;
 }
