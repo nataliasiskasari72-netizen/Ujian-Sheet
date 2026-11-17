@@ -208,12 +208,12 @@
       </p>
       <button class="btn btn-primary" style="margin-top:16px;" type="button" onclick="location.reload()">Kembali ke Halaman Login</button>
     </div>
-  </section>  
+  </section>
 
-<div id="modalConfirm" class="modal-backdrop hidden">
+  <div id="modalConfirm" class="modal-backdrop hidden">
     <div class="modal-card">
       <h3 style="margin-top:0;">Kirim Jawaban Sekarang?</h3>
-      <p id="modalConfirmText" style="color:var(--muted);font-size:0.9rem;"></p>
+<p id="modalConfirmText" style="color:var(--muted);font-size:0.9rem;"></p>
       <div style="display:flex;gap:10px;margin-top:18px;">
         <button class="btn btn-outline" style="flex:1;" onclick="tutupModal()">Batal</button>
         <button id="btnConfirmKirim" class="btn btn-success" style="flex:1;" onclick="submitJawabanAkhir()">Ya, Kirim</button>
@@ -224,246 +224,218 @@
 <script>
   const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfOlX5JLYhseq15OIjFt102UKSJTwnE23Un0uafMnB-U2Nqo54-cGZ_9krg516MzFQqQ/exec";
   const GITHUB_DATA_URL = "https://github.io";
-
-  let cacheKelas = null;
-  let siswaAktif = null;
-  let mapelAktif = null;
-  let daftarSoal = [];
-  let jawabanUser = {};
-  let raguUser = {};
-  let indexAktif = 0;
-  let timerInterval = null;
-  let sisaDetik = 0;
-
-  document.getElementById('selKelas').addEventListener('change', function() {
-    muatJadwalKelas(this.value);
-  });
-
-  async function muatJadwalKelas(kelas) {
-    const selMapel = document.getElementById('selMapel');
-    const infoJadwal = document.getElementById('infoJadwalMapel');
-    tampilkanErrorLogin("");
-    infoJadwal.textContent = "";
-
-    if (!kelas) {
-      selMapel.innerHTML = '<option value="">-- Pilih Kelas Terlebih Dahulu --</option>';
-      selMapel.disabled = true;
-      return;
-    }
-
-    selMapel.innerHTML = '<option value="">Sedang memuat mapel ' + kelas + '...</option>';
-    selMapel.disabled = true;
-
-    try {
-      const urlJson = GITHUB_DATA_URL + kelas + '.json?t=' + new Date().getTime();
-      const res = await fetch(urlJson);
-      if (!res.ok) {
-        throw new Error('File ' + kelas + '.json belum ditemukan di GitHub (Kode ' + res.status + ').');
-      }
-      cacheKelas = await res.json();
-
-      if (cacheKelas.info) {
-        document.getElementById('uiJudulUjian').textContent = cacheKelas.info.judulUjian || "APLIKASI UJIAN ONLINE";
-        document.getElementById('uiNamaSekolah').textContent = cacheKelas.info.namaSekolah || "SMP NEGERI 2 PURWOSARI";
-      }
-
-      selMapel.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>';
-      const daftar = cacheKelas.daftar || [];
-      for (let i = 0; i < daftar.length; i++) {
-        const m = daftar[i];
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.judul + ' (' + m.durasi + ' Menit)';
-        selMapel.appendChild(opt);
-      }
-      selMapel.disabled = false;
-    } catch (err) {
-      selMapel.innerHTML = '<option value="">Gagal memuat data kelas</option>';
-      tampilkanErrorLogin(err.message);
-    }
-  }
-
-  function cekStatusJadwal() {
-    const idMapel = document.getElementById('selMapel').value;
-    const infoJadwal = document.getElementById('infoJadwalMapel');
-    const btnMasuk = document.getElementById('btnMasuk');
-    tampilkanErrorLogin("");
-
-    if (!idMapel || !cacheKelas) {
-      infoJadwal.textContent = "";
-      return;
-    }
-
-    const m = cacheKelas.daftar.find(function(x) { return x.id === idMapel; });
-    if (!m) return;
-
-    const now = Date.now();
-    if (m.mulai && now < m.mulai) {
-      const tglMulai = new Date(m.mulai).toLocaleString('id-ID');
-      infoJadwal.textContent = '⏳ Ujian belum dimulai. Jadwal mulai: ' + tglMulai;
-      btnMasuk.disabled = true;
-    } else if (m.berakhir && now > m.berakhir) {
-      infoJadwal.textContent = '⛔ Waktu pelaksanaan ujian untuk mata pelajaran ini sudah berakhir.';
-      btnMasuk.disabled = true;
-    } else {
-      infoJadwal.textContent = '✅ Jadwal Aktif • Durasi pengerjaan: ' + m.durasi + ' menit';
-      btnMasuk.disabled = false;
-    }
-  }
-
-  async function prosesLogin() {
-    const kelas = document.getElementById('selKelas').value;
-    const idUlangan = document.getElementById('selMapel').value;
-    const nisn = document.getElementById('inpNisn').value.trim();
-    const password = document.getElementById('inpPass').value.trim();
-
-    if (!kelas || !idUlangan || !nisn || !password) {
-      tampilkanErrorLogin("Harap lengkapi Kelas, Mata Pelajaran, NISN, dan Password.");
-      return;
-    }
-
-    const btn = document.getElementById('btnMasuk');
-    btn.disabled = true;
-    btn.textContent = "Memverifikasi Akun...";
-    tampilkanErrorLogin("");
-
-    try {
-      const res = await fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'login', nisn: nisn, password: password, idUlangan: idUlangan, kelas: kelas })
-      });
-      const result = await res.json();
-
-      if (result.status !== 'success') {
-        tampilkanErrorLogin(result.message || "Login gagal.");
-        btn.disabled = false;
-        btn.textContent = "MASUK UJIAN";
-        return;
-      }
-
-      const soalMapel = (cacheKelas.bank_soal && cacheKelas.bank_soal[idUlangan]) || [];
-      if (soalMapel.length === 0) {
-        tampilkanErrorLogin("Bank soal untuk mata pelajaran ini masih kosong.");
-        btn.disabled = false;
-        btn.textContent = "MASUK UJIAN";
-        return;
-      }
-
-      siswaAktif = result.data;
-      mapelAktif = cacheKelas.daftar.find(function(x) { return x.id === idUlangan; });
-      daftarSoal = soalMapel;
-      mulaiSesiUjian();
-    } catch (err) {
-      tampilkanErrorLogin("Koneksi ke server gagal: " + err.message);
-      btn.disabled = false;
-      btn.textContent = "MASUK UJIAN";
-    }
-  }
-
-  function tampilkanErrorLogin(msg) {
-    const el = document.getElementById('loginAlert');
-    if (!msg) { el.classList.add('hidden'); return; }
-    el.textContent = msg;
-    el.classList.remove('hidden');
-  }
-
-  function mulaiSesiUjian() {
-    document.getElementById('pageLogin').classList.add('hidden');
-    document.getElementById('pageExam').classList.remove('hidden');
-    document.getElementById('uiTimer').classList.remove('hidden');
-
-    document.getElementById('examNamaSiswa').textContent = siswaAktif.nama;
-    document.getElementById('examKelasSiswa').textContent = siswaAktif.kelas;
-    document.getElementById('examMapelJudul').textContent = mapelAktif.judul;
-
-    sisaDetik = (parseInt(mapelAktif.durasi, 10) || 60) * 60;
-    jalankanTimer();
-    renderGridNomor();
-    tampilkanSoal(0);
-  }
-
-  function jalankanTimer() {
-    updateTampilanTimer();
-    timerInterval = setInterval(function() {
-      sisaDetik--;
-      updateTampilanTimer();
-      if (sisaDetik <= 0) {
-        clearInterval(timerInterval);
-        alert("Waktu ujian telah habis! Jawaban Anda akan otomatis dikirim.");
-        submitJawabanAkhir(true);
-      }
-    }, 1000);
-  }
-
-  function updateTampilanTimer() {
-    const m = Math.floor(Math.max(0, sisaDetik) / 60);
-    const s = Math.max(0, sisaDetik) % 60;
-    document.getElementById('uiTimer').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }
-
-  function getNoSoal(soal, idx) {
-    const raw = soal.NO || soal.No || soal.No_Soal || soal.NO_SOAL || (idx + 1);
-    const match = String(raw).match(/\d+/);
-    return match ? parseInt(match, 10) : (idx + 1);
-  }
-
-  function tampilkanSoal(idx) {
-    indexAktif = idx;
-    const soal = daftarSoal[idx];
-    const noSoal = getNoSoal(soal, idx);
-    const tipe = String(soal.Tipe_Soal || soal.TIPE_SOAL || soal.Tipe || soal.TIPE || "PG").toUpperCase().trim();
-
-    document.getElementById('qNomorLabel').textContent = 'Soal No. ' + noSoal + ' dari ' + daftarSoal.length;
-    document.getElementById('qTipeLabel').textContent = tipe;
-
-    const teks = soal.Teks_Soal || soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
-    const gbr = soal.Media_Soal || soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
-    let htmlKonten = '<div>' + teks + '</div>';
-    if (gbr) {
-      const urlGbr = formatGambarDrive(String(gbr).trim());
-      htmlKonten += '<img src="' + urlGbr + '" class="soal-img" alt="Gambar Soal">';
-    }
-    document.getElementById('qKonten').innerHTML = htmlKonten;
-
-    const opsiBox = document.getElementById('qOpsiContainer');
-    opsiBox.innerHTML = "";
-    const jwbSekarang = jawabanUser[noSoal] || "";
-
-    if (tipe === "PG" || tipe === "BS") {
-      const daftarHuruf = tipe === "BS" ? ["A", "B"] : ["A", "B", "C", "D", "E"];
-      daftarHuruf.forEach(function(huruf) {
-        const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
-        if (!teksOpsi && tipe !== "BS") return;
-        const labelTampil = teksOpsi || (huruf === "A" ? "Benar" : "Salah");
-        const isSel = jwbSekarang === huruf;
-
-        const div = document.createElement('div');
-        div.className = 'option-item ' + (isSel ? 'selected' : '');
-        div.innerHTML = '<div class="option-key">' + huruf + '</div><div>' + labelTampil + '</div>';
-        div.onclick = function() {
-          jawabanUser[noSoal] = huruf;
-          tampilkanSoal(idx);
-          renderGridNomor();
-        };
-        opsiBox.appendChild(div);
-      });
-    } else if (tipe === "PGK") {
-      const terpilih = jwbSekarang ? jwbSekarang.split(',') : [];
-      ["A", "B", "C", "D", "E"].forEach(function(huruf) {
-        const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
-        if (!teksOpsi) return;
-        const isSel = terpilih.includes(huruf);
-
-        const div = document.createElement('div');
-        div.className = 'option-item ' + (isSel ? 'selected' : '');
-        div.innerHTML = '<input type="checkbox" ' + (isSel ? 'checked' : '') + ' style="margin-top:5px;"> <strong>' + huruf + '.</strong> <div>' + teksOpsi + '</div>';
-        div.onclick = function() {
-          let arr = jawabanUser[noSoal] ? jawabanUser[noSoal].split(',').filter(Boolean) : [];
-          if (arr.includes(huruf)) arr = arr.filter(function(x) { return x !== huruf; });
-          else arr.push(huruf);
-          arr.sort();
-          jawabanUser[noSoal] = arr.join(',');
-          tampilkanSoal(idx);
+let cacheKelas = null;
+let siswaAktif = null;
+let mapelAktif = null;
+let daftarSoal = [];
+let jawabanUser = {};
+let raguUser = {};
+let indexAktif = 0;
+let timerInterval = null;
+let sisaDetik = 0;
+document.getElementById('selKelas').addEventListener('change', function() { muatJadwalKelas(this.value); });
+document.getElementById('selMapel').addEventListener('change', cekStatusJadwal);
+document.getElementById('btnMasuk').addEventListener('click', prosesLogin);
+document.getElementById('btnToggleNav').addEventListener('click', toggleDaftarSoal);
+document.getElementById('btnPrev').addEventListener('click', function() { pindahSoal(-1); });
+document.getElementById('btnRagu').addEventListener('click', toggleRagu);
+document.getElementById('btnNext').addEventListener('click', function() { pindahSoal(1); });
+document.getElementById('btnSelesai').addEventListener('click', konfirmasiSelesai);
+document.getElementById('btnBatalKirim').addEventListener('click', tutupModal);
+document.getElementById('btnConfirmKirim').addEventListener('click', function() { submitJawabanAkhir(false); });
+async function muatJadwalKelas(kelas) {
+const selMapel = document.getElementById('selMapel');
+const infoJadwal = document.getElementById('infoJadwalMapel');
+tampilkanErrorLogin("");
+infoJadwal.textContent = "";
+if (!kelas) {
+selMapel.innerHTML = '-- Pilih Kelas Terlebih Dahulu --';
+selMapel.disabled = true;
+return;
+}
+selMapel.innerHTML = 'Sedang memuat mapel ' + kelas + '...';
+selMapel.disabled = true;
+try {
+const urlJson = GITHUB_DATA_URL + kelas + '.json?t=' + new Date().getTime();
+const res = await fetch(urlJson);
+if (!res.ok) throw new Error('File ' + kelas + '.json belum ditemukan di GitHub (Kode ' + res.status + ').');
+cacheKelas = await res.json();
+if (cacheKelas.info) {
+document.getElementById('uiJudulUjian').textContent = cacheKelas.info.judulUjian || "APLIKASI UJIAN ONLINE";
+document.getElementById('uiNamaSekolah').textContent = cacheKelas.info.namaSekolah || "SMP NEGERI 2 PURWOSARI";
+}
+selMapel.innerHTML = '-- Pilih Mata Pelajaran --';
+const daftar = cacheKelas.daftar || [];
+for (let i = 0; i < daftar.length; i++) {
+const m = daftar[i];
+const opt = document.createElement('option');
+opt.value = m.id;
+opt.textContent = m.judul + ' (' + m.durasi + ' Menit)';
+selMapel.appendChild(opt);
+}
+selMapel.disabled = false;
+} catch (err) {
+selMapel.innerHTML = 'Gagal memuat data kelas';
+tampilkanErrorLogin(err.message);
+}
+}
+function cekStatusJadwal() {
+const idMapel = document.getElementById('selMapel').value;
+const infoJadwal = document.getElementById('infoJadwalMapel');
+const btnMasuk = document.getElementById('btnMasuk');
+tampilkanErrorLogin("");
+if (!idMapel || !cacheKelas) {
+infoJadwal.textContent = "";
+return;
+}
+const m = cacheKelas.daftar.find(function(x) { return x.id === idMapel; });
+if (!m) return;
+const now = Date.now();
+if (m.mulai && now < m.mulai) {
+const tglMulai = new Date(m.mulai).toLocaleString('id-ID');
+infoJadwal.textContent = '⏳ Ujian belum dimulai. Jadwal mulai: ' + tglMulai;
+btnMasuk.disabled = true;
+} else if (m.berakhir && now > m.berakhir) {
+infoJadwal.textContent = '⛔ Waktu pelaksanaan ujian untuk mata pelajaran ini sudah berakhir.';
+btnMasuk.disabled = true;
+} else {
+infoJadwal.textContent = '✅ Jadwal Aktif • Durasi pengerjaan: ' + m.durasi + ' menit';
+btnMasuk.disabled = false;
+}
+}
+async function prosesLogin() {
+const kelas = document.getElementById('selKelas').value;
+const idUlangan = document.getElementById('selMapel').value;
+const nisn = document.getElementById('inpNisn').value.trim();
+const password = document.getElementById('inpPass').value.trim();
+if (!kelas || !idUlangan || !nisn || !password) {
+tampilkanErrorLogin("Harap lengkapi Kelas, Mata Pelajaran, NISN, dan Password.");
+return;
+}
+const btn = document.getElementById('btnMasuk');
+btn.disabled = true;
+btn.textContent = "Memverifikasi Akun...";
+tampilkanErrorLogin("");
+try {
+const res = await fetch(GAS_WEB_APP_URL, {
+method: 'POST',
+body: JSON.stringify({ action: 'login', nisn: nisn, password: password, idUlangan: idUlangan, kelas: kelas })
+});
+const result = await res.json();
+if (result.status !== 'success') {
+tampilkanErrorLogin(result.message || "Login gagal.");
+btn.disabled = false;
+btn.textContent = "MASUK UJIAN";
+return;
+}
+const soalMapel = (cacheKelas.bank_soal && cacheKelas.bank_soal[idUlangan]) || [];
+if (soalMapel.length === 0) {
+tampilkanErrorLogin("Bank soal untuk mata pelajaran ini masih kosong.");
+btn.disabled = false;
+btn.textContent = "MASUK UJIAN";
+return;
+}
+siswaAktif = result.data;
+mapelAktif = cacheKelas.daftar.find(function(x) { return x.id === idUlangan; });
+daftarSoal = soalMapel;
+mulaiSesiUjian();
+} catch (err) {
+tampilkanErrorLogin("Koneksi ke server gagal: " + err.message);
+btn.disabled = false;
+btn.textContent = "MASUK UJIAN";
+}
+}
+function tampilkanErrorLogin(msg) {
+const el = document.getElementById('loginAlert');
+if (!msg) { el.classList.add('hidden'); return; }
+el.textContent = msg;
+el.classList.remove('hidden');
+}
+function mulaiSesiUjian() {
+document.getElementById('pageLogin').classList.add('hidden');
+document.getElementById('pageExam').classList.remove('hidden');
+document.getElementById('uiTimer').classList.remove('hidden');
+document.getElementById('examNamaSiswa').textContent = siswaAktif.nama;
+document.getElementById('examKelasSiswa').textContent = siswaAktif.kelas;
+document.getElementById('examMapelJudul').textContent = mapelAktif.judul;
+sisaDetik = (parseInt(mapelAktif.durasi, 10) || 60) * 60;
+jalankanTimer();
+renderGridNomor();
+tampilkanSoal(0);
+}
+function jalankanTimer() {
+updateTampilanTimer();
+timerInterval = setInterval(function() {
+sisaDetik--;
+updateTampilanTimer();
+if (sisaDetik <= 0) {
+clearInterval(timerInterval);
+alert("Waktu ujian telah habis! Jawaban Anda akan otomatis dikirim.");
+submitJawabanAkhir(true);
+}
+}, 1000);
+}
+function updateTampilanTimer() {
+const m = Math.floor(Math.max(0, sisaDetik) / 60);
+const s = Math.max(0, sisaDetik) % 60;
+document.getElementById('uiTimer').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+function getNoSoal(soal, idx) {
+const raw = soal.NO || soal.No || soal.No_Soal || soal.NO_SOAL || (idx + 1);
+const match = String(raw).match(/\d+/);
+return match ? parseInt(match, 10) : (idx + 1);
+}
+function tampilkanSoal(idx) {
+indexAktif = idx;
+const soal = daftarSoal[idx];
+const noSoal = getNoSoal(soal, idx);
+const tipe = String(soal.Tipe_Soal || soal.TIPE_SOAL || soal.Tipe || soal.TIPE || "PG").toUpperCase().trim();
+document.getElementById('qNomorLabel').textContent = 'Soal No. ' + noSoal + ' dari ' + daftarSoal.length;
+document.getElementById('qTipeLabel').textContent = tipe;
+const teks = soal.Teks_Soal || soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
+const gbr = soal.Media_Soal || soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
+let htmlKonten = '' + teks + '';
+if (gbr) {
+const urlGbr = formatGambarDrive(String(gbr).trim());
+htmlKonten += '';
+}
+document.getElementById('qKonten').innerHTML = htmlKonten;
+const opsiBox = document.getElementById('qOpsiContainer');
+opsiBox.innerHTML = "";
+const jwbSekarang = jawabanUser[noSoal] || "";
+if (tipe === "PG" || tipe === "BS") {
+const daftarHuruf = tipe === "BS" ? ["A", "B"] : ["A", "B", "C", "D", "E"];
+daftarHuruf.forEach(function(huruf) {
+const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
+if (!teksOpsi && tipe !== "BS") return;
+const labelTampil = teksOpsi || (huruf === "A" ? "Benar" : "Salah");
+const isSel = jwbSekarang === huruf;
+const div = document.createElement('div');
+div.className = 'option-item ' + (isSel ? 'selected' : '');
+div.innerHTML = '' + huruf + '' + labelTampil + '';
+div.onclick = function() {
+jawabanUser[noSoal] = huruf;
+tampilkanSoal(idx);
+renderGridNomor();
+};
+opsiBox.appendChild(div);
+});
+} else if (tipe === "PGK") {
+const terpilih = jwbSekarang ? jwbSekarang.split(',') : [];
+["A", "B", "C", "D", "E"].forEach(function(huruf) {
+const teksOpsi = soal['Opsi_' + huruf] || soal['OPSI_' + huruf] || soal[huruf] || "";
+if (!teksOpsi) return;
+const isSel = terpilih.includes(huruf);
+const div = document.createElement('div');
+div.className = 'option-item ' + (isSel ? 'selected' : '');
+div.innerHTML = '<input type="checkbox" ' + (isSel ? 'checked' : '') + ' style="margin-top:5px;"> ' + huruf + '. ' + teksOpsi + '';
+div.onclick = function() {
+let arr = jawabanUser[noSoal] ? jawabanUser[noSoal].split(',').filter(Boolean) : [];
+if (arr.includes(huruf)) arr = arr.filter(function(x) { return x !== huruf; });
+else arr.push(huruf);
+arr.sort();
+jawabanUser[noSoal] = arr.join(',');
+tampilkanSoal(idx);
 renderGridNomor();
 };
 opsiBox.appendChild(div);
