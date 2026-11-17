@@ -1,15 +1,9 @@
-### 2. File Utuh `index.html` (Untuk GitHub Pages)
-
-Salin seluruh kode di bawah ini ke dalam file `index.html` di repositori GitHub Anda. Tempelkan URL Web App dari langkah 1 ke variabel `GAS_WEB_APP_URL`, lalu aktifkan **GitHub Pages**.
-
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>APLIKASI UJIAN ONLINE - SMP NEGERI 2 PURWOSARI</title>
-  <link rel="icon" href="https://pic.in.th">
   <link href="https://googleapis.com" rel="stylesheet">
   <style>
     :root {
@@ -48,7 +42,11 @@ Salin seluruh kode di bawah ini ke dalam file `index.html` di repositori GitHub 
 
     .login-box { max-width: 440px; margin: 32px auto; }
     .login-header { text-align: center; margin-bottom: 20px; }
-    .login-header img { width: 64px; height: 64px; object-fit: contain; margin-bottom: 8px; }
+    .logo-circle {
+      width: 60px; height: 60px; background: #eff6ff; color: var(--primary);
+      border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; margin-bottom: 8px; border: 2px solid #bfdbfe;
+    }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: #334155; }
     .form-control {
@@ -138,7 +136,7 @@ Salin seluruh kode di bawah ini ke dalam file `index.html` di repositori GitHub 
   <main id="pageLogin" class="container">
     <div class="card login-box">
       <div class="login-header">
-        <img src="https://pic.in.th" alt="Logo">
+        <div class="logo-circle">🎓</div>
         <h2 style="margin:0;font-size:1.2rem;">Login Peserta Ujian</h2>
         <p style="margin:4px 0 0;color:var(--muted);font-size:0.85rem;">Pilih kelas & mata pelajaran aktif</p>
       </div>
@@ -217,9 +215,12 @@ Salin seluruh kode di bawah ini ke dalam file `index.html` di repositori GitHub 
       <div style="font-size:3rem;margin-bottom:10px;">✅</div>
       <h2 style="margin:0 0 8px;">UJIAN SELESAI!</h2>
       <p id="finishMsg" style="color:var(--muted);font-size:0.95rem;line-height:1.5;">
-Terima kasih, jawaban Anda telah berhasil dikirim dan tercatat di server sekolah.
+        Terima kasih, jawaban Anda telah berhasil dikirim dan tercatat di server sekolah.
+      </p>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="location.reload()">Kembali ke Halaman Login</button>
+    </div>
+  </section>
 
-Kembali ke Halaman Login
 Kirim Jawaban Sekarang?
 
 
@@ -237,6 +238,11 @@ let raguUser = {};
 let indexAktif = 0;
 let timerInterval = null;
 let sisaDetik = 0;
+// Otomatis muat mapel jika kelas sudah terpilih saat halaman di-refresh
+window.addEventListener('DOMContentLoaded', () => {
+const kelasAwal = document.getElementById('selKelas').value;
+if (kelasAwal) muatJadwalKelas(kelasAwal);
+});
 async function muatJadwalKelas(kelas) {
 const selMapel = document.getElementById('selMapel');
 const infoJadwal = document.getElementById('infoJadwalMapel');
@@ -251,7 +257,7 @@ selMapel.innerHTML = 'Memuat daftar pelajaran...';
 selMapel.disabled = true;
 try {
 const res = await fetch(./data/${kelas}.json?t=${Date.now()});
-if (!res.ok) throw new Error(File data/${kelas}.json belum tersedia di GitHub.);
+if (!res.ok) throw new Error(Data jadwal kelas ${kelas} belum tersedia di server.);
 cacheKelas = await res.json();
 if (cacheKelas.info) {
 document.getElementById('uiJudulUjian').textContent = cacheKelas.info.judulUjian || "APLIKASI UJIAN ONLINE";
@@ -374,7 +380,7 @@ document.getElementById('uiTimer').textContent = ${String(m).padStart(2,'0')}:${
 function getNoSoal(soal, idx) {
 const raw = soal.NO || soal.No || soal.No_Soal || soal.NO_SOAL || (idx + 1);
 const match = String(raw).match(/\d+/);
-return match ? parseInt(match[0], 10) : (idx + 1);
+return match ? parseInt(match, 10) : (idx + 1);
 }
 function tampilkanSoal(idx) {
 indexAktif = idx;
@@ -383,8 +389,8 @@ const noSoal = getNoSoal(soal, idx);
 const tipe = String(soal.Tipe_Soal || soal.TIPE_SOAL || soal.Tipe || soal.TIPE || "PG").toUpperCase().trim();
 document.getElementById('qNomorLabel').textContent = Soal No. ${noSoal} dari ${daftarSoal.length};
 document.getElementById('qTipeLabel').textContent = tipe;
-const teks = soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
-const gbr = soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
+const teks = soal.Teks_Soal || soal.Pertanyaan || soal.PERTANYAAN || soal.Soal || soal.SOAL || "";
+const gbr = soal.Media_Soal || soal.Gambar || soal.GAMBAR || soal.Link_Gambar || "";
 let htmlKonten = <div>${teks}</div>;
 if (gbr) {
 const urlGbr = formatGambarDrive(String(gbr).trim());
@@ -507,7 +513,7 @@ grid.appendChild(btn);
 }
 function formatGambarDrive(url) {
 if (url.includes('google.com')) {
-const id = url.includes('id=') ? url.split('id=')[1].split('&')[0] : url.split('/d/')[1].split('/')[0];
+const id = url.includes('id=') ? url.split('id=').split('&') : url.split('/d/').split('/');
 return https://google.com{id};
 }
 return url;
