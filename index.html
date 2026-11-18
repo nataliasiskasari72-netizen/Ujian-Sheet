@@ -264,7 +264,7 @@ async function muatJadwalKelas(kelas) {
     if (!data || !Array.isArray(data.daftar)) throw new Error('Format file ' + kelas + '.json tidak sesuai. Jalankan sinkronisasi ulang dari Spreadsheet.');
     cacheKelas = data;
     if (data.info) {
-      document.getElementById('uiJudulUjian').textContent = data.info.judulUjian || "APLIKASI UJIAN ONLINE";
+      document.getElementById('uiJudulUjian').textContent = "APLIKASI UJIAN ONLINE";
       document.getElementById('uiNamaSekolah').textContent = data.info.namaSekolah || "SMP NEGERI 2 PURWOSARI";
     }
     selMapel.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>';
